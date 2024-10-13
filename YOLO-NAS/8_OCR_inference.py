@@ -13,10 +13,10 @@ start = datetime.datetime.now()
 images_dir = '/home/noy/YOLOv8/test/images/'
 
 # Output directory for processed images
-output_dir = '/home/noy/YOLOv8/test/output_images_Yolov8'
+output_dir = '/home/noy/YOLOv8/test/output_images_Yolov8_OCR'
 
 # Output directory for text files
-txt_output_dir = '/home/noy/YOLOv8/test/yolov8_labels'
+txt_output_dir = '/home/noy/YOLOv8/test/yolov8_OCR_labels'
 
 class_names =['Address', 'DOB', 'Exp date', 'details','name','number','photo','sign']
 
@@ -60,8 +60,9 @@ def WriteLabels(labels, labels_filepath):
 US_address = r'(\d{1,5}(?:\s?[A-Za-z]+(?:\s?[A-Za-z]+)?(?:\s?(?:ST|STREET|AVE|AVENUE|BLVD|BOULEVARD|RD|ROAD|DR|DRIVE|LN|LANE|CT|COURT|PL|PLACE))?)\s?(?:#?\s?[A-Za-z0-9]+)?(?:,\s)?(?:[A-Za-z\s]+)?(?:,\s)?(?:[A-Za-z]{2})?\s?\d{5}(?:-\d{4})?)'
 dob_pattern = r'(DOB|Date of Birth|Birthdate|DoB)[\s:]*\b(0[1-9]|[12][0-9]|3[01])[-/](0[1-9]|1[0-2])[-/](19|20)\d{2}\b'
 card_expiry = r'\d{2}/\d{2}'
-person_name = r'^(?!.*\b(BANK|DRIVING|LICENSE|PASSPORT|VISA|DEBIT)\b)[A-Za-z]+(?:\s+[A-Za-z]+){1,2}$'
-credit_card_number = r'^\d{16}$'
+person_name = r'^(?!.*\b(BANK|DRIVING|LICENSE|PASSPORT|VISA|DEBIT|DATE)\b)[A-Za-z]+(?:\s+[A-Za-z]+){1,2}$'
+credit_card_number = r'\b(\d{9}|(?:\d{6,9})|(?:\d{5,12})|(?:\d{4}[ -]?){3}\d{4})\b'
+
 
 # Function to check if OCR text matches a pattern
 def match_ocr_text(text, pattern):
@@ -73,6 +74,7 @@ def perform_ocr_on_image(image, labels_filepath):
     image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     results = recognize_text(image_rgb)
 
+    print("OCR results:", results)  # Print OCR results
     
     for (bbox, text, prob) in results:
         if prob >= threshold_OCR:
@@ -82,24 +84,29 @@ def perform_ocr_on_image(image, labels_filepath):
 
         # Check if OCR text matches any pattern and draw bounding boxes
             if match_ocr_text(text, US_address):
-                cv2.rectangle(image, pt1=top_left, pt2=bottom_right, color=(0, 255, 0), thickness=2)
-                cv2.putText(image, 'address', (top_left[0], top_left[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+                print(f"OCR Detected Address: {text}")
+                cv2.rectangle(image, pt1=top_left, pt2=bottom_right, color=(0, 0, 255), thickness=2)
+                cv2.putText(image, 'address', (top_left[0], top_left[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
                 labels.append(f"0 {top_left[0] / 640} {top_left[1] / 640} {bottom_right[0] / 640} {bottom_right[1] / 640}")
             elif match_ocr_text(text, dob_pattern):
-                cv2.rectangle(image, pt1=top_left, pt2=bottom_right, color=(0, 255, 0), thickness=2)
-                cv2.putText(image, 'dob', (top_left[0], top_left[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+                print(f"OCR Detected DOB: {text}")
+                cv2.rectangle(image, pt1=top_left, pt2=bottom_right, color=(0, 0, 255), thickness=2)
+                cv2.putText(image, 'dob', (top_left[0], top_left[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
                 labels.append(f"1 {top_left[0] / 640} {top_left[1] / 640} {bottom_right[0] / 640} {bottom_right[1] / 640}")
             elif match_ocr_text(text, card_expiry):
-                cv2.rectangle(image, pt1=top_left, pt2=bottom_right, color=(0, 255, 0), thickness=2)
-                cv2.putText(image, 'exp_date', (top_left[0], top_left[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+                print(f"OCR Detected Expiry Date: {text}")
+                cv2.rectangle(image, pt1=top_left, pt2=bottom_right, color=(0, 0, 255), thickness=2)
+                cv2.putText(image, 'exp_date', (top_left[0], top_left[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
                 labels.append(f"2 {top_left[0] / 640} {top_left[1] / 640} {bottom_right[0] / 640} {bottom_right[1] / 640}")
             elif match_ocr_text(text, person_name):
-                cv2.rectangle(image, pt1=top_left, pt2=bottom_right, color=(0, 255, 0), thickness=2)
-                cv2.putText(image, 'name', (top_left[0], top_left[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+                print(f"OCR Detected Name: {text}")
+                cv2.rectangle(image, pt1=top_left, pt2=bottom_right, color=(0, 0, 255), thickness=2)
+                cv2.putText(image, 'name', (top_left[0], top_left[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
                 labels.append(f"3 {top_left[0] / 640} {top_left[1] / 640} {bottom_right[0] / 640} {bottom_right[1] / 640}")
             elif match_ocr_text(text, credit_card_number):
-                cv2.rectangle(image, pt1=top_left, pt2=bottom_right, color=(0, 255, 0), thickness=2)
-                cv2.putText(image, 'card_number', (top_left[0], top_left[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+                print(f"OCR Detected Credit Card Number: {text}")
+                cv2.rectangle(image, pt1=top_left, pt2=bottom_right, color=(0, 0, 255), thickness=2)
+                cv2.putText(image, 'card_number', (top_left[0], top_left[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
                 labels.append(f"4 {top_left[0] / 640} {top_left[1] / 640} {bottom_right[0] / 640} {bottom_right[1] / 640}")
 
     #WriteLabels(labels, labels_filepath)
@@ -140,6 +147,7 @@ for image_name in os.listdir(images_dir):
         other_classes_detected = False
 
         image_height, image_width, _ = image.shape
+        print(f"YOLOv8 results for {image_name}:")
 
         # Draw bounding boxes on the image
         for result in results.boxes.data.tolist():
@@ -157,6 +165,8 @@ for image_name in os.listdir(images_dir):
                 # Get the class name
                 class_name = results.names[int(class_id)].lower()
 
+                print(f"YOLO Detected: {class_name} with confidence {score}")
+
                  # Handle "sign", "photo", "details" - Draw bounding box, mark for OCR later
                 if class_name in ["sign", "photo", "details"]:
                     cv2.rectangle(image, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 4)
@@ -167,6 +177,7 @@ for image_name in os.listdir(images_dir):
                     # Draw rectangle around the detected object
                     cv2.rectangle(image, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 4)
                     detected_classes[class_name] = True
+                    print(f"YOLO Detected: {class_name}")
                     # Get the color for the label
                     #color = text_colors[class_name]
                     
@@ -198,9 +209,9 @@ for image_name in os.listdir(images_dir):
         #if labels:
             # Replace the last occurrence of the file extension with ".txt"
         #txt_output_path = os.path.join(txt_output_dir, image_name.rsplit('.', 1)[0] + '.txt')
-        with open(labels_filepath, 'w') as txt_file:
-            for label in labels:
-                txt_file.write(label + '\n')
+        # with open(labels_filepath, 'w') as txt_file:
+        #     for label in labels:
+        #         txt_file.write(label + '\n')
 
 end = datetime.datetime.now()
 elapsed_time = (end - start).total_seconds()
