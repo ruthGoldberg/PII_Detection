@@ -9,7 +9,6 @@ import matplotlib.pyplot as plt
 
 start = datetime.datetime.now()
 
-
 # Path to the directory containing test images
 images_dir = '/home/noy/YOLOv8/test/images/'
 
@@ -20,6 +19,16 @@ output_dir = '/home/noy/YOLOv8/test/output_images_Yolov8'
 txt_output_dir = '/home/noy/YOLOv8/test/yolov8_labels'
 
 class_names =['Address', 'DOB', 'Exp date', 'details','name','number','photo','sign']
+
+# Flags to track detected classes
+detected_classes = {
+    "dob": False,
+    "name": False,
+    "number": False,
+    "address": False,
+    "exp date": False,
+    "other_classes": False  # To track if other classes like "sign", "photo", etc., were detected
+}
 
 # Load the YOLO model
 model_path = os.path.join('.', 'runs', 'detect', 'train', 'weights', 'last.pt')
@@ -83,7 +92,6 @@ def perform_ocr_on_image(image, labels_filepath):
             num = text.strip()
             nuk = len(num)
 
-            card_name = '^[a-zA-Z]+(?: [a-zA-Z]+)?$'
 
             if nuk >= 4 and sum(c.isdigit() for c in num) >= 2:
                 cv2.rectangle(image, pt1=top_left, pt2=bottom_right, color=(0, 255, 0), thickness=-1)
@@ -133,7 +141,7 @@ for image_name in os.listdir(images_dir):
 
         # Initialize labels for the current image
         labels = []
-        # Initialize a flag to keep track of the detected classes other than front_side and back_side
+        # Initialize a flag to keep track of the detected classes 
         other_classes_detected = False
 
         image_height, image_width, _ = image.shape
@@ -153,11 +161,17 @@ for image_name in os.listdir(images_dir):
 
                 # Get the class name
                 class_name = results.names[int(class_id)].lower()
-                other_classes_detected = True
-                #Check if the class is "card_number" or "exp_date"
-                if class_name in class_names:
+
+                 # Handle "sign", "photo", "details" - Draw bounding box, mark for OCR later
+                if class_name in ["sign", "photo", "details"]:
+                    cv2.rectangle(image, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 4)
+                    detected_classes["other_classes"] = True
+                    other_classes_detected = True
+                
+                if class_name in ["dob", "name", "number", "address", "exp date"]:
                     # Draw rectangle around the detected object
                     cv2.rectangle(image, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 4)
+                    detected_classes[class_name] = True
                     # Get the color for the label
                     #color = text_colors[class_name]
                     
@@ -166,12 +180,20 @@ for image_name in os.listdir(images_dir):
                                 #cv2.FONT_HERSHEY_SIMPLEX, 1.3, 3, cv2.LINE_AA)
                     # cv2.putText(image, class_name.upper(), (int(x1), int(y1 - 10)),
                     #             cv2.FONT_HERSHEY_SIMPLEX, 1.3, (0, 255, 0), 3, cv2.LINE_AA)
-                    cv2.rectangle(image, (int(x1), int(y1)), (int(x2), int(y2)), (0, 0, 0), -1)
+                    # cv2.rectangle(image, (int(x1), int(y1)), (int(x2), int(y2)), (0, 0, 0), -1)
+
+         # If YOLO detected all the required classes, skip OCR
+        if all(detected_classes[key] for key in ["dob", "name", "number", "address", "exp date"]):
+            other_classes_detected = True  # No need for OCR as all important classes are detected
+        else:
+            other_classes_detected = False  # OCR is required to extract missing information
                     
         if not other_classes_detected:
             # Perform OCR on the image and save the processed image
             ocr_image, ocr_labels = perform_ocr_on_image(image, labels_filepath)
             labels.extend(ocr_labels)
+
+        WriteLabels(labels, labels_filepath)
 
         # Save the processed image to the output directory
         #output_image_path = os.path.join(output_dir, image_name)
