@@ -4,7 +4,7 @@ from ultralytics import YOLO
 import datetime
 import easyocr
 import re
-import matplotlib.pyplot as plt
+
 
 
 start = datetime.datetime.now()
@@ -56,25 +56,16 @@ def WriteLabels(labels, labels_filepath):
         for label in labels:
             txt_file.write(label + '\n')
 
-def ocr_address(image, labels_filepath):
-    # in ID, maybe passport
-    US_address = r'(\d{1,5}(?:\s?[A-Za-z]+(?:\s?[A-Za-z]+)?(?:\s?(?:ST|STREET|AVE|AVENUE|BLVD|BOULEVARD|RD|ROAD|DR|DRIVE|LN|LANE|CT|COURT|PL|PLACE))?)\s?(?:#?\s?[A-Za-z0-9]+)?(?:,\s)?(?:[A-Za-z\s]+)?(?:,\s)?(?:[A-Za-z]{2})?\s?\d{5}(?:-\d{4})?)'
-    
 
-def ocr_dob(image, labels_filepath):
-    dob_pattern = r'(DOB|Date of Birth|Birthdate|DoB)[\s:]*\b(0[1-9]|[12][0-9]|3[01])[-/](0[1-9]|1[0-2])[-/](19|20)\d{2}\b'
+US_address = r'(\d{1,5}(?:\s?[A-Za-z]+(?:\s?[A-Za-z]+)?(?:\s?(?:ST|STREET|AVE|AVENUE|BLVD|BOULEVARD|RD|ROAD|DR|DRIVE|LN|LANE|CT|COURT|PL|PLACE))?)\s?(?:#?\s?[A-Za-z0-9]+)?(?:,\s)?(?:[A-Za-z\s]+)?(?:,\s)?(?:[A-Za-z]{2})?\s?\d{5}(?:-\d{4})?)'
+dob_pattern = r'(DOB|Date of Birth|Birthdate|DoB)[\s:]*\b(0[1-9]|[12][0-9]|3[01])[-/](0[1-9]|1[0-2])[-/](19|20)\d{2}\b'
+card_expiry = r'\d{2}/\d{2}'
+person_name = r'^(?!.*\b(BANK|DRIVING|LICENSE|PASSPORT|VISA|DEBIT)\b)[A-Za-z]+(?:\s+[A-Za-z]+){1,2}$'
+credit_card_number = r'^\d{16}$'
 
-def ocr_exp_date(image, labels_filepath):
-    card_expiry = r'\d{2}/\d{2}'
-
-def ocr_name(image, labels_filepath):
-    person_name = r'^(?!.*\b(BANK|DRIVING|LICENSE|PASSPORT|VISA|DEBIT)\b)[A-Za-z]+(?:\s+[A-Za-z]+){1,2}$'
-
-
-def ocr_number(image, labels_filepath):
-    credit_card_number = r'^\d{16}$'
-
-
+# Function to check if OCR text matches a pattern
+def match_ocr_text(text, pattern):
+    return re.match(pattern, text.strip())
 
 # Function to perform OCR on an image and save the processed image - DEVIDE TO OCR PER CLASS
 def perform_ocr_on_image(image, labels_filepath):
@@ -89,23 +80,27 @@ def perform_ocr_on_image(image, labels_filepath):
             top_left = (int(top_left[0]), int(top_left[1]))
             bottom_right = (int(bottom_right[0]), int(bottom_right[1]))
 
-            num = text.strip()
-            nuk = len(num)
-
-
-            if nuk >= 4 and sum(c.isdigit() for c in num) >= 2:
-                cv2.rectangle(image, pt1=top_left, pt2=bottom_right, color=(0, 255, 0), thickness=-1)
-                cv2.putText(image, 'card_number', (top_left[0], top_left[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+        # Check if OCR text matches any pattern and draw bounding boxes
+            if match_ocr_text(text, US_address):
+                cv2.rectangle(image, pt1=top_left, pt2=bottom_right, color=(0, 255, 0), thickness=2)
+                cv2.putText(image, 'address', (top_left[0], top_left[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+                labels.append(f"0 {top_left[0] / 640} {top_left[1] / 640} {bottom_right[0] / 640} {bottom_right[1] / 640}")
+            elif match_ocr_text(text, dob_pattern):
+                cv2.rectangle(image, pt1=top_left, pt2=bottom_right, color=(0, 255, 0), thickness=2)
+                cv2.putText(image, 'dob', (top_left[0], top_left[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
                 labels.append(f"1 {top_left[0] / 640} {top_left[1] / 640} {bottom_right[0] / 640} {bottom_right[1] / 640}")
-            elif re.findall(card_expiry, num):
-                cv2.rectangle(image, pt1=top_left, pt2=bottom_right, color=(0, 255, 0), thickness=-1)
+            elif match_ocr_text(text, card_expiry):
+                cv2.rectangle(image, pt1=top_left, pt2=bottom_right, color=(0, 255, 0), thickness=2)
                 cv2.putText(image, 'exp_date', (top_left[0], top_left[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
                 labels.append(f"2 {top_left[0] / 640} {top_left[1] / 640} {bottom_right[0] / 640} {bottom_right[1] / 640}")
-
-            # elif re.findall(card_name, num):
-            #     cv2.rectangle(image, pt1=top_left, pt2=bottom_right, color=(0, 255, 0), thickness=-1)
-            #     cv2.putText(image, 'holder_name', (top_left[0], top_left[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
-            #     labels.append(f"4 {top_left[0]} {top_left[1]} {bottom_right[0]} {bottom_right[1]}")
+            elif match_ocr_text(text, person_name):
+                cv2.rectangle(image, pt1=top_left, pt2=bottom_right, color=(0, 255, 0), thickness=2)
+                cv2.putText(image, 'name', (top_left[0], top_left[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+                labels.append(f"3 {top_left[0] / 640} {top_left[1] / 640} {bottom_right[0] / 640} {bottom_right[1] / 640}")
+            elif match_ocr_text(text, credit_card_number):
+                cv2.rectangle(image, pt1=top_left, pt2=bottom_right, color=(0, 255, 0), thickness=2)
+                cv2.putText(image, 'card_number', (top_left[0], top_left[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+                labels.append(f"4 {top_left[0] / 640} {top_left[1] / 640} {bottom_right[0] / 640} {bottom_right[1] / 640}")
 
     #WriteLabels(labels, labels_filepath)
     return (image, labels)
