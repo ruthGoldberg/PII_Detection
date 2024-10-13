@@ -47,6 +47,26 @@ def WriteLabels(labels, labels_filepath):
         for label in labels:
             txt_file.write(label + '\n')
 
+def ocr_address(image, labels_filepath):
+    # in ID, maybe passport
+    US_address = r'(\d{1,5}(?:\s?[A-Za-z]+(?:\s?[A-Za-z]+)?(?:\s?(?:ST|STREET|AVE|AVENUE|BLVD|BOULEVARD|RD|ROAD|DR|DRIVE|LN|LANE|CT|COURT|PL|PLACE))?)\s?(?:#?\s?[A-Za-z0-9]+)?(?:,\s)?(?:[A-Za-z\s]+)?(?:,\s)?(?:[A-Za-z]{2})?\s?\d{5}(?:-\d{4})?)'
+    
+
+def ocr_dob(image, labels_filepath):
+    dob_pattern = r'(DOB|Date of Birth|Birthdate|DoB)[\s:]*\b(0[1-9]|[12][0-9]|3[01])[-/](0[1-9]|1[0-2])[-/](19|20)\d{2}\b'
+
+def ocr_exp_date(image, labels_filepath):
+    card_expiry = r'\d{2}/\d{2}'
+
+def ocr_name(image, labels_filepath):
+    person_name = r'^(?!.*\b(BANK|DRIVING|LICENSE|PASSPORT|VISA|DEBIT)\b)[A-Za-z]+(?:\s+[A-Za-z]+){1,2}$'
+
+
+def ocr_number(image, labels_filepath):
+    credit_card_number = r'^\d{16}$'
+
+
+
 # Function to perform OCR on an image and save the processed image - DEVIDE TO OCR PER CLASS
 def perform_ocr_on_image(image, labels_filepath):
     labels = []
@@ -63,8 +83,6 @@ def perform_ocr_on_image(image, labels_filepath):
             num = text.strip()
             nuk = len(num)
 
-            credit_card_pattern = r'^\d{16}$'
-            card_expiry = '\d{2}/\d{2}'
             card_name = '^[a-zA-Z]+(?: [a-zA-Z]+)?$'
 
             if nuk >= 4 and sum(c.isdigit() for c in num) >= 2:
