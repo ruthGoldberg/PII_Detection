@@ -58,10 +58,10 @@ def WriteLabels(labels, labels_filepath):
 
 
 US_address = r'(\d{1,5}(?:\s?[A-Za-z]+(?:\s?[A-Za-z]+)?(?:\s?(?:ST|STREET|AVE|AVENUE|BLVD|BOULEVARD|RD|ROAD|DR|DRIVE|LN|LANE|CT|COURT|PL|PLACE))?)\s?(?:#?\s?[A-Za-z0-9]+)?(?:,\s)?(?:[A-Za-z\s]+)?(?:,\s)?(?:[A-Za-z]{2})?\s?\d{5}(?:-\d{4})?)'
-dob_pattern = r'(DOB|Date of Birth|Birthdate|DoB)[\s:]*\b(0[1-9]|[12][0-9]|3[01])[-/](0[1-9]|1[0-2])[-/](19|20)\d{2}\b'
-card_expiry = r'\d{2}/\d{2}'
-person_name = r'^(?!.*\b(BANK|DRIVING|LICENSE|PASSPORT|VISA|DEBIT|DATE)\b)[A-Za-z]+(?:\s+[A-Za-z]+){1,2}$'
-credit_card_number = r'\b(\d{9}|(?:\d{6,9})|(?:\d{5,12})|(?:\d{4}[ -]?){3}\d{4})\b'
+dob_pattern = r'(?i)^(DOB|Date of Birth|Birthdate|DoB)[\s:]*\b(0[1-9]|[12][0-9]|3[01])[-/](0[1-9]|1[0-2])[-/](19|20)\d{2}\b'
+card_expiry = r'^\d{2}/\d{2}$'
+person_name = r'(?i)^(?!.*\b(BANK|DRIVING|LICENSE|PASSPORT|VISA|DEBIT|DATE|CREDIT|CARD|MONTH|GOVERNMENT|YEAR|VALID|STATE|OF|NO|EXPRESS|NUMBER)\b)[A-Za-z]+(?:\s+[A-Za-z]+){1,2}$'
+number = r'\b(\d{9}|(?:\d{6,9})|(?:\d{5,12})|^\d{16}$)\b'
 
 
 # Function to check if OCR text matches a pattern
@@ -74,8 +74,9 @@ def perform_ocr_on_image(image, labels_filepath):
     image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     results = recognize_text(image_rgb)
 
-    print("OCR results:", results)  # Print OCR results
-    
+    for (_, text, score) in results:
+        print(f"Detected OCR text: {text} with score: {score}")
+
     for (bbox, text, prob) in results:
         if prob >= threshold_OCR:
             (top_left, _, bottom_right, _) = bbox
@@ -103,7 +104,7 @@ def perform_ocr_on_image(image, labels_filepath):
                 cv2.rectangle(image, pt1=top_left, pt2=bottom_right, color=(0, 0, 255), thickness=2)
                 cv2.putText(image, 'name', (top_left[0], top_left[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
                 labels.append(f"3 {top_left[0] / 640} {top_left[1] / 640} {bottom_right[0] / 640} {bottom_right[1] / 640}")
-            elif match_ocr_text(text, credit_card_number):
+            elif match_ocr_text(text, number):
                 print(f"OCR Detected Credit Card Number: {text}")
                 cv2.rectangle(image, pt1=top_left, pt2=bottom_right, color=(0, 0, 255), thickness=2)
                 cv2.putText(image, 'card_number', (top_left[0], top_left[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
