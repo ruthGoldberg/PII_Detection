@@ -58,8 +58,8 @@ def WriteLabels(labels, labels_filepath):
 
 
 US_address = r'(\d{1,5}(?:\s?[A-Za-z]+(?:\s?[A-Za-z]+)?(?:\s?(?:ST|STREET|AVE|AVENUE|BLVD|BOULEVARD|RD|ROAD|DR|DRIVE|LN|LANE|CT|COURT|PL|PLACE))?)\s?(?:#?\s?[A-Za-z0-9]+)?(?:,\s)?(?:[A-Za-z\s]+)?(?:,\s)?(?:[A-Za-z]{2})?\s?\d{5}(?:-\d{4})?)'
-dob_pattern = r'(?i)^(DOB|Date of Birth|Birthdate|DoB)[\s:]*\b(0[1-9]|[12][0-9]|3[01])[-/](0[1-9]|1[0-2])[-/](19|20)\d{2}\b'
-card_expiry = r'^\d{2}/\d{2}$'
+dob_pattern = r'(?i)^(?:DOB|Date of Birth|Birthdate|DoB)[\s:]*\b(0[1-9]|[12][0-9]|3[01])[-/](0[1-9]|1[0-2])[-/](19|20)\d{2}\b|\b(0[1-9]|[12][0-9]|3[01])[-/](0[1-9]|1[0-2])[-/](19|20)\d{2}\b'
+card_expiry = r'^\d{2}/\d{2}$ '
 person_name = r'(?i)^(?!.*\b(BANK|DRIVING|LICENSE|PASSPORT|VISA|DEBIT|DATE|CREDIT|CARD|MONTH|GOVERNMENT|YEAR|VALID|STATE|OF|NO|EXPRESS|NUMBER)\b)[A-Za-z]+(?:\s+[A-Za-z]+){1,2}$'
 number = r'\b(\d{4}|\d{9}|(?:\d{6,9})|(?:\d{5,12})|^\d{16}$)\b'
 
@@ -69,7 +69,7 @@ def match_ocr_text(text, pattern):
     return re.match(pattern, text.strip())
 
 # Function to perform OCR on an image and save the processed image - DEVIDE TO OCR PER CLASS
-def perform_ocr_on_image(image, labels_filepath):
+def perform_ocr_on_image(image, labels_filepath, missing_classes):
     labels = []
     image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     results = recognize_text(image_rgb)
@@ -83,28 +83,28 @@ def perform_ocr_on_image(image, labels_filepath):
             top_left = (int(top_left[0]), int(top_left[1]))
             bottom_right = (int(bottom_right[0]), int(bottom_right[1]))
 
-        # Check if OCR text matches any pattern and draw bounding boxes
-            if match_ocr_text(text, US_address):
+        # Only process OCR for classes that are missing (not already detected by YOLO)
+            if match_ocr_text(text, US_address) and "address" in missing_classes:
                 print(f"OCR Detected Address: {text}")
                 cv2.rectangle(image, pt1=top_left, pt2=bottom_right, color=(0, 0, 255), thickness=2)
                 cv2.putText(image, 'address', (top_left[0], top_left[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
                 labels.append(f"0 {top_left[0] / 640} {top_left[1] / 640} {bottom_right[0] / 640} {bottom_right[1] / 640}")
-            elif match_ocr_text(text, dob_pattern):
+            elif match_ocr_text(text, dob_pattern) and "dob" in missing_classes:
                 print(f"OCR Detected DOB: {text}")
                 cv2.rectangle(image, pt1=top_left, pt2=bottom_right, color=(0, 0, 255), thickness=2)
                 cv2.putText(image, 'dob', (top_left[0], top_left[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
                 labels.append(f"1 {top_left[0] / 640} {top_left[1] / 640} {bottom_right[0] / 640} {bottom_right[1] / 640}")
-            elif match_ocr_text(text, card_expiry):
+            elif match_ocr_text(text, card_expiry) and "exp date" in missing_classes:
                 print(f"OCR Detected Expiry Date: {text}")
                 cv2.rectangle(image, pt1=top_left, pt2=bottom_right, color=(0, 0, 255), thickness=2)
                 cv2.putText(image, 'exp_date', (top_left[0], top_left[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
                 labels.append(f"2 {top_left[0] / 640} {top_left[1] / 640} {bottom_right[0] / 640} {bottom_right[1] / 640}")
-            elif match_ocr_text(text, person_name):
+            elif match_ocr_text(text, person_name) and "name" in missing_classes:
                 print(f"OCR Detected Name: {text}")
                 cv2.rectangle(image, pt1=top_left, pt2=bottom_right, color=(0, 0, 255), thickness=2)
                 cv2.putText(image, 'name', (top_left[0], top_left[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
                 labels.append(f"3 {top_left[0] / 640} {top_left[1] / 640} {bottom_right[0] / 640} {bottom_right[1] / 640}")
-            elif match_ocr_text(text, number):
+            elif match_ocr_text(text, number) and "number" in missing_classes:
                 print(f"OCR Detected Credit Card Number: {text}")
                 cv2.rectangle(image, pt1=top_left, pt2=bottom_right, color=(0, 0, 255), thickness=2)
                 cv2.putText(image, 'card_number', (top_left[0], top_left[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
@@ -138,6 +138,9 @@ for image_name in os.listdir(images_dir):
         if image is None:
             print(f"Error: Unable to read image '{input_filepath}'")
             continue
+
+        # Reset detected classes for each image
+        detected_classes = {key: False for key in detected_classes}
 
         # Perform object detection
         results = detect_objects(image)
@@ -190,17 +193,19 @@ for image_name in os.listdir(images_dir):
                     #             cv2.FONT_HERSHEY_SIMPLEX, 1.3, (0, 255, 0), 3, cv2.LINE_AA)
                     # cv2.rectangle(image, (int(x1), int(y1)), (int(x2), int(y2)), (0, 0, 0), -1)
 
-         # If YOLO detected all the required classes, skip OCR
-        if all(detected_classes[key] for key in ["dob", "name", "number", "address"]):
-            other_classes_detected = True  # No need for OCR as all important classes are detected
-        elif all(detected_classes[key] for key in ["name", "number", "exp date"]):
-            other_classes_detected = True
-        else:
-            other_classes_detected = False  # OCR is required to extract missing information
-                    
-        if not other_classes_detected:
+        # Check if all required classes for the first list ("dob", "name", "number", "address") are detected
+        missing_classes_first_list = [key for key in ["dob", "name", "number", "address"] if not detected_classes[key]]
+        # Check if all required classes for the second list ("name", "number", "exp date") are detected
+        missing_classes_second_list = [key for key in ["name", "number", "exp date"] if not detected_classes[key]]
+
+        # Combine the missing classes from both lists
+        missing_classes = missing_classes_first_list + missing_classes_second_list
+
+        # If either list is missing classes, trigger OCR for the missing ones
+        if missing_classes:
+            print(f"Missing classes for OCR: {missing_classes}")
             # Perform OCR on the image and save the processed image
-            ocr_image, ocr_labels = perform_ocr_on_image(image, labels_filepath)
+            ocr_image, ocr_labels = perform_ocr_on_image(image, labels_filepath, missing_classes)
             labels.extend(ocr_labels)
 
         WriteLabels(labels, labels_filepath)
