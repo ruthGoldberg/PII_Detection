@@ -61,7 +61,7 @@ US_address = r'(\d{1,5}(?:\s?[A-Za-z]+(?:\s?[A-Za-z]+)?(?:\s?(?:ST|STREET|AVE|AV
 dob_pattern = r'(?i)^(DOB|Date of Birth|Birthdate|DoB)[\s:]*\b(0[1-9]|[12][0-9]|3[01])[-/](0[1-9]|1[0-2])[-/](19|20)\d{2}\b'
 card_expiry = r'^\d{2}/\d{2}$'
 person_name = r'(?i)^(?!.*\b(BANK|DRIVING|LICENSE|PASSPORT|VISA|DEBIT|DATE|CREDIT|CARD|MONTH|GOVERNMENT|YEAR|VALID|STATE|OF|NO|EXPRESS|NUMBER)\b)[A-Za-z]+(?:\s+[A-Za-z]+){1,2}$'
-number = r'\b(\d{9}|(?:\d{6,9})|(?:\d{5,12})|^\d{16}$)\b'
+number = r'\b(\d{4}|\d{9}|(?:\d{6,9})|(?:\d{5,12})|^\d{16}$)\b'
 
 
 # Function to check if OCR text matches a pattern
@@ -173,12 +173,13 @@ for image_name in os.listdir(images_dir):
                     cv2.rectangle(image, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 4)
                     detected_classes["other_classes"] = True
                     other_classes_detected = True
+                    print(f"YOLO has labeled: {class_name}")
                 
                 if class_name in ["dob", "name", "number", "address", "exp date"]:
                     # Draw rectangle around the detected object
                     cv2.rectangle(image, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 4)
                     detected_classes[class_name] = True
-                    print(f"YOLO Detected: {class_name}")
+                    print(f"YOLO labeled: {class_name}")
                     # Get the color for the label
                     #color = text_colors[class_name]
                     
@@ -190,8 +191,10 @@ for image_name in os.listdir(images_dir):
                     # cv2.rectangle(image, (int(x1), int(y1)), (int(x2), int(y2)), (0, 0, 0), -1)
 
          # If YOLO detected all the required classes, skip OCR
-        if all(detected_classes[key] for key in ["dob", "name", "number", "address", "exp date"]):
+        if all(detected_classes[key] for key in ["dob", "name", "number", "address"]):
             other_classes_detected = True  # No need for OCR as all important classes are detected
+        elif all(detected_classes[key] for key in ["name", "number", "exp date"]):
+            other_classes_detected = True
         else:
             other_classes_detected = False  # OCR is required to extract missing information
                     
