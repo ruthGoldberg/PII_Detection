@@ -106,7 +106,7 @@ def perform_ocr_on_image(image, labels_filepath):
             elif match_ocr_text(text, card_expiry):
                 print(f"OCR Detected Expiry Date: {text}")
                 cv2.rectangle(image, pt1=top_left, pt2=bottom_right, color=(0, 0, 255), thickness=-1)
-                cv2.putText(image, 'exp_date', (top_left[0], top_left[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
+                cv2.putText(image, 'exp date', (top_left[0], top_left[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
                 labels.append(f"2 {top_left[0] / image_width} {top_left[1] / image_height} {bottom_right[0] / image_width} {bottom_right[1] / image_height}")
             
             elif match_ocr_text(text, person_name):
@@ -131,17 +131,19 @@ def perform_ocr_on_image(image, labels_filepath):
 # Text color dictionary for different labels
 text_colors = {
     "card_number": (255, 0, 0),   # Red
-    "exp_date": (0, 255, 0),      # Green
+    "exp date": (0, 255, 0),      # Green
     "holder_name": (0, 0, 255)    # Blue
 }
 # Create output directories if they don't exist
 os.makedirs(output_dir, exist_ok=True)
 os.makedirs(txt_output_dir, exist_ok=True)
 
+
 # Process each image in the images_dir directory
 #i =-1 
 for image_name in os.listdir(images_dir):
     counter += 1
+    ctr = 0
     if image_name.endswith(('.jpg', '.jpeg', '.png', 'webp')):  # Consider only image files
         
         input_filepath = os.path.join(images_dir, image_name)
@@ -157,11 +159,15 @@ for image_name in os.listdir(images_dir):
 
         # Initialize labels for the current image
         labels = []
+
         # Initialize a flag to keep track of the detected classes 
         other_classes_detected = False
-
+        
         image_height, image_width, _ = image.shape
         print(f"YOLOv8 results for {image_name}:")
+        
+        
+        
 
         # Draw bounding boxes on the image
         for result in results.boxes.data.tolist():
@@ -179,20 +185,26 @@ for image_name in os.listdir(images_dir):
                 # Get the class name
                 class_name = results.names[int(class_id)].lower()
 
-                print(f"YOLO Detected: {class_name} with confidence {score}")
+
+                # print(f"YOLO Detected: {class_name} with confidence {score}")
 
                  # Handle "sign", "photo", "details" - Draw bounding box, mark for OCR later
                 if class_name in ["sign", "photo", "details"]:
                     cv2.rectangle(image, (int(x1), int(y1)), (int(x2), int(y2)), (0, 0, 0), -1)
                     detected_classes["other_classes"] = True
-                    other_classes_detected = True
-                    print(f"YOLO has labeled: {class_name}")
+                    print("Detected classes:", detected_classes)
+                    # other_classes_detected = True
+                    print(f"YOLO has labeled: {class_name} .Number of run is: {ctr}")
+                    
                 
                 if class_name in ["dob", "name", "number", "address", "exp date"]:
                     # Draw rectangle around the detected object
                     cv2.rectangle(image, (int(x1), int(y1)), (int(x2), int(y2)), (0, 0, 0), -1)
+                    
                     detected_classes[class_name] = True
-                    print(f"YOLO labeled: {class_name}")
+                    print("Detected classes:", detected_classes)
+                    # ctr += 1
+                    print(f"YOLO has labeled: {class_name} .Number of run is: {ctr}")
                     # Get the color for the label
                     #color = text_colors[class_name]
                     
@@ -203,16 +215,22 @@ for image_name in os.listdir(images_dir):
                     #             cv2.FONT_HERSHEY_SIMPLEX, 1.3, (0, 255, 0), 3, cv2.LINE_AA)
                     # cv2.rectangle(image, (int(x1), int(y1)), (int(x2), int(y2)), (0, 0, 0), -1)
 
+        print("Detected classes:", detected_classes)
          # If YOLO detected all the required classes, skip OCR
         if all(detected_classes[key] for key in ["dob", "name", "number", "address"]):
-            other_classes_detected = True  # No need for OCR as all important classes are detected
-            print("no need for OCR")
+            print("no need for OCR1")
+            # other_classes_detected = True  # No need for OCR as all important classes are detected
+        
         elif all(detected_classes[key] for key in ["name", "number", "exp date"]):
-            other_classes_detected = True
+            print("no need for OCR2")
+            # other_classes_detected = True
+            
         else:
-            other_classes_detected = False  # OCR is required to extract missing information
-                    
-        if not other_classes_detected:
+            print("true check")
+            other_classes_detected = True  # OCR is required to extract missing information
+
+        print(f"other classes detected is {other_classes_detected}")           
+        if other_classes_detected:
             print("there is a need for OCR")
             # Perform OCR on the image and save the processed image
             ocr_image, ocr_labels = perform_ocr_on_image(image, labels_filepath)
